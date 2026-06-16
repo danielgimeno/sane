@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "sae"
+version = "0.1.0"
+description = "Emulador de arquitectura de software — canvas interactivo con simulación de tráfico"
+authors = ["Daniel"]
+readme = "README.md"
+packages = [{ include = "sae" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = "^0.115.0"
+uvicorn = { extras = ["standard"], version = "^0.32.0" }
+pydantic = "^2.9.0"
+websockets = "^13.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.0"
+httpx = "^0.27.0"
+
+[tool.poetry.scripts]
+sae = "sae.main:run"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

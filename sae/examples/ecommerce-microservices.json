@@ -1,0 +1,214 @@
+{
+  "id": "ecommerce-microservices",
+  "title": "E-commerce con microservicios",
+  "description": "Plataforma de e-commerce real: usuarios entran por CDN, atraviesan API Gateway con autenticación, y consumen tres microservicios independientes (catálogo, carrito, pedidos). Catálogo lee de PostgreSQL con caché Redis. Carrito persiste en Redis. Pedidos publica eventos a Kafka que consumen workers asíncronos (facturación, notificaciones, stock).",
+  "category": "Microservicios",
+  "nodes": [
+    {
+      "id": "user1",
+      "type": "user",
+      "label": "Compradores",
+      "position": { "x": 40, "y": 380 },
+      "parameters": { "requests_per_second": 800 },
+      "connections": {
+        "outgoing": [
+          { "target": "cdn1", "source_handle": "requests", "target_handle": "in" }
+        ],
+        "incoming": []
+      }
+    },
+    {
+      "id": "cdn1",
+      "type": "cdn",
+      "label": "CloudFront",
+      "position": { "x": 220, "y": 380 },
+      "parameters": { "hit_ratio": 0.75, "edge_latency_ms": 10 },
+      "connections": {
+        "outgoing": [
+          { "target": "gw1", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "user1", "source_handle": "requests", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "gw1",
+      "type": "api_gateway",
+      "label": "API Gateway",
+      "position": { "x": 410, "y": 380 },
+      "parameters": { "rate_limit_rps": 2000, "auth_enabled": true },
+      "connections": {
+        "outgoing": [
+          { "target": "ms_catalog", "source_handle": "out", "target_handle": "in" },
+          { "target": "ms_cart", "source_handle": "out", "target_handle": "in" },
+          { "target": "ms_orders", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "cdn1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "ms_catalog",
+      "type": "microservice",
+      "label": "Catálogo",
+      "position": { "x": 640, "y": 180 },
+      "parameters": { "instances": 4, "process_time_ms": 25 },
+      "connections": {
+        "outgoing": [
+          { "target": "redis_catalog", "source_handle": "out", "target_handle": "in" },
+          { "target": "db_catalog", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "gw1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "ms_cart",
+      "type": "microservice",
+      "label": "Carrito",
+      "position": { "x": 640, "y": 380 },
+      "parameters": { "instances": 3, "process_time_ms": 15 },
+      "connections": {
+        "outgoing": [
+          { "target": "redis_cart", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "gw1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "ms_orders",
+      "type": "microservice",
+      "label": "Pedidos",
+      "position": { "x": 640, "y": 580 },
+      "parameters": { "instances": 4, "process_time_ms": 45 },
+      "connections": {
+        "outgoing": [
+          { "target": "db_orders", "source_handle": "out", "target_handle": "in" },
+          { "target": "kafka1", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "gw1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "redis_catalog",
+      "type": "redis",
+      "label": "Redis Catálogo",
+      "position": { "x": 880, "y": 80 },
+      "parameters": { "hit_ratio": 0.92, "memory_mb": 1024 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "ms_catalog", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "db_catalog",
+      "type": "database",
+      "label": "PostgreSQL Catálogo",
+      "position": { "x": 880, "y": 220 },
+      "parameters": { "max_connections": 100, "query_time_ms": 12 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "ms_catalog", "source_handle": "out", "target_handle": "in" },
+          { "source": "worker_stock", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "redis_cart",
+      "type": "redis",
+      "label": "Redis Carrito",
+      "position": { "x": 880, "y": 380 },
+      "parameters": { "hit_ratio": 0.98, "memory_mb": 512 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "ms_cart", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "db_orders",
+      "type": "database",
+      "label": "PostgreSQL Pedidos",
+      "position": { "x": 880, "y": 530 },
+      "parameters": { "max_connections": 80, "query_time_ms": 18 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "ms_orders", "source_handle": "out", "target_handle": "in" },
+          { "source": "worker_billing", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "kafka1",
+      "type": "kafka",
+      "label": "Kafka",
+      "position": { "x": 880, "y": 680 },
+      "parameters": { "topics": ["order.created", "order.paid"], "partitions": 6 },
+      "connections": {
+        "outgoing": [
+          { "target": "worker_billing", "source_handle": "out", "target_handle": "in" },
+          { "target": "worker_notify", "source_handle": "out", "target_handle": "in" },
+          { "target": "worker_stock", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "ms_orders", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "worker_billing",
+      "type": "microservice",
+      "label": "Worker Facturación",
+      "position": { "x": 1140, "y": 560 },
+      "parameters": { "instances": 2, "process_time_ms": 200 },
+      "connections": {
+        "outgoing": [
+          { "target": "db_orders", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "kafka1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "worker_notify",
+      "type": "microservice",
+      "label": "Worker Notificaciones",
+      "position": { "x": 1140, "y": 700 },
+      "parameters": { "instances": 2, "process_time_ms": 80 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "kafka1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "worker_stock",
+      "type": "microservice",
+      "label": "Worker Stock",
+      "position": { "x": 1140, "y": 840 },
+      "parameters": { "instances": 3, "process_time_ms": 60 },
+      "connections": {
+        "outgoing": [
+          { "target": "db_catalog", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "kafka1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    }
+  ]
+}

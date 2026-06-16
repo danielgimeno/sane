@@ -1,0 +1,63 @@
+{
+  "id": "load-balancer-basic",
+  "title": "Balanceador con réplicas",
+  "description": "Tráfico de usuarios distribuido entre dos servidores web mediante round-robin",
+  "category": "Básico",
+  "nodes": [
+    {
+      "id": "user1",
+      "type": "user",
+      "label": "Usuarios",
+      "position": { "x": 50, "y": 150 },
+      "parameters": { "requests_per_second": 50 },
+      "connections": {
+        "outgoing": [
+          { "target": "lb1", "source_handle": "requests", "target_handle": "in" }
+        ],
+        "incoming": []
+      }
+    },
+    {
+      "id": "lb1",
+      "type": "load_balancer",
+      "label": "Balanceador",
+      "position": { "x": 280, "y": 150 },
+      "parameters": { "algorithm": "round_robin" },
+      "connections": {
+        "outgoing": [
+          { "target": "ws1", "source_handle": "out", "target_handle": "in" },
+          { "target": "ws2", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "user1", "source_handle": "requests", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "ws1",
+      "type": "web_server",
+      "label": "Web Server 1",
+      "position": { "x": 520, "y": 80 },
+      "parameters": { "workers": 4, "process_time_ms": 20 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "lb1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "ws2",
+      "type": "web_server",
+      "label": "Web Server 2",
+      "position": { "x": 520, "y": 220 },
+      "parameters": { "workers": 4, "process_time_ms": 20 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "lb1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,292 @@
+{
+  "id": "banking-event-driven-cqrs",
+  "title": "Banca event-driven con CQRS",
+  "description": "Arquitectura tipo banca digital. Patrón CQRS estricto: el lado de escritura recibe comandos (transferencias, pagos) que se validan en un servicio síncrono y se persisten como eventos en Kafka (event sourcing). El lado de lectura mantiene proyecciones optimizadas en bases de datos separadas, alimentadas por consumidores asíncronos. Un workflow saga gestiona transferencias entre cuentas garantizando consistencia eventual.",
+  "category": "Event-driven",
+  "nodes": [
+    {
+      "id": "users_app",
+      "type": "user",
+      "label": "App Móvil",
+      "position": { "x": 40, "y": 280 },
+      "parameters": { "requests_per_second": 350 },
+      "connections": {
+        "outgoing": [
+          { "target": "cdn1", "source_handle": "requests", "target_handle": "in" }
+        ],
+        "incoming": []
+      }
+    },
+    {
+      "id": "cdn1",
+      "type": "cdn",
+      "label": "CDN",
+      "position": { "x": 220, "y": 280 },
+      "parameters": { "hit_ratio": 0.4, "edge_latency_ms": 12 },
+      "connections": {
+        "outgoing": [
+          { "target": "gw1", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "users_app", "source_handle": "requests", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "gw1",
+      "type": "api_gateway",
+      "label": "API Gateway",
+      "position": { "x": 400, "y": 280 },
+      "parameters": { "rate_limit_rps": 800, "auth_enabled": true, "mtls": true },
+      "connections": {
+        "outgoing": [
+          { "target": "cmd_payments", "source_handle": "out", "target_handle": "in" },
+          { "target": "query_accounts", "source_handle": "out", "target_handle": "in" },
+          { "target": "query_history", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "cdn1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "cmd_payments",
+      "type": "microservice",
+      "label": "Command: Pagos",
+      "position": { "x": 640, "y": 80 },
+      "parameters": { "instances": 6, "process_time_ms": 90, "side": "write" },
+      "connections": {
+        "outgoing": [
+          { "target": "db_writes", "source_handle": "out", "target_handle": "in" },
+          { "target": "kafka_events", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "gw1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "db_writes",
+      "type": "database",
+      "label": "Event Store (PG)",
+      "position": { "x": 900, "y": 80 },
+      "parameters": { "max_connections": 80, "query_time_ms": 22, "purpose": "event_sourcing" },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "cmd_payments", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "kafka_events",
+      "type": "kafka",
+      "label": "Kafka Domain Events",
+      "position": { "x": 900, "y": 280 },
+      "parameters": { "topics": ["payment.initiated", "payment.completed", "payment.failed", "account.updated"], "partitions": 12, "retention_hours": 720 },
+      "connections": {
+        "outgoing": [
+          { "target": "proj_accounts", "source_handle": "out", "target_handle": "in" },
+          { "target": "proj_history", "source_handle": "out", "target_handle": "in" },
+          { "target": "saga_transfer", "source_handle": "out", "target_handle": "in" },
+          { "target": "fraud_detector", "source_handle": "out", "target_handle": "in" },
+          { "target": "audit_logger", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "cmd_payments", "source_handle": "out", "target_handle": "in" },
+          { "source": "saga_transfer", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "proj_accounts",
+      "type": "microservice",
+      "label": "Proyección: Saldos",
+      "position": { "x": 1180, "y": 80 },
+      "parameters": { "instances": 4, "process_time_ms": 8, "side": "projection" },
+      "connections": {
+        "outgoing": [
+          { "target": "db_accounts_read", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "kafka_events", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "proj_history",
+      "type": "microservice",
+      "label": "Proyección: Movimientos",
+      "position": { "x": 1180, "y": 200 },
+      "parameters": { "instances": 3, "process_time_ms": 10, "side": "projection" },
+      "connections": {
+        "outgoing": [
+          { "target": "db_history_read", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "kafka_events", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "db_accounts_read",
+      "type": "database",
+      "label": "PG Read: Saldos",
+      "position": { "x": 1420, "y": 80 },
+      "parameters": { "max_connections": 120, "query_time_ms": 6, "purpose": "read_model" },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "proj_accounts", "source_handle": "out", "target_handle": "in" },
+          { "source": "query_accounts", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "db_history_read",
+      "type": "database",
+      "label": "ClickHouse: Histórico",
+      "position": { "x": 1420, "y": 200 },
+      "parameters": { "max_connections": 60, "query_time_ms": 18, "purpose": "read_model" },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "proj_history", "source_handle": "out", "target_handle": "in" },
+          { "source": "query_history", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "query_accounts",
+      "type": "microservice",
+      "label": "Query: Saldos",
+      "position": { "x": 640, "y": 280 },
+      "parameters": { "instances": 6, "process_time_ms": 15, "side": "read" },
+      "connections": {
+        "outgoing": [
+          { "target": "redis_query", "source_handle": "out", "target_handle": "in" },
+          { "target": "db_accounts_read", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "gw1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "query_history",
+      "type": "microservice",
+      "label": "Query: Historial",
+      "position": { "x": 640, "y": 480 },
+      "parameters": { "instances": 4, "process_time_ms": 35, "side": "read" },
+      "connections": {
+        "outgoing": [
+          { "target": "redis_query", "source_handle": "out", "target_handle": "in" },
+          { "target": "db_history_read", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "gw1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "redis_query",
+      "type": "redis",
+      "label": "Redis Read-Through",
+      "position": { "x": 900, "y": 480 },
+      "parameters": { "hit_ratio": 0.87, "memory_mb": 2048 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "query_accounts", "source_handle": "out", "target_handle": "in" },
+          { "source": "query_history", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "saga_transfer",
+      "type": "microservice",
+      "label": "Saga: Transferencias",
+      "position": { "x": 1180, "y": 380 },
+      "parameters": { "instances": 3, "process_time_ms": 50, "pattern": "saga_orchestrator" },
+      "connections": {
+        "outgoing": [
+          { "target": "kafka_events", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "kafka_events", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "fraud_detector",
+      "type": "microservice",
+      "label": "Detector de Fraude",
+      "position": { "x": 1180, "y": 520 },
+      "parameters": { "instances": 4, "process_time_ms": 120, "ml_inference": true },
+      "connections": {
+        "outgoing": [
+          { "target": "queue_alerts", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "kafka_events", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "audit_logger",
+      "type": "microservice",
+      "label": "Auditoría",
+      "position": { "x": 1180, "y": 660 },
+      "parameters": { "instances": 2, "process_time_ms": 12, "immutable": true },
+      "connections": {
+        "outgoing": [
+          { "target": "db_audit", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "kafka_events", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "queue_alerts",
+      "type": "rabbitmq",
+      "label": "Cola Alertas",
+      "position": { "x": 1420, "y": 520 },
+      "parameters": { "prefetch_count": 5, "ack_mode": "manual", "priority_enabled": true },
+      "connections": {
+        "outgoing": [
+          { "target": "worker_notify_ops", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "fraud_detector", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "worker_notify_ops",
+      "type": "microservice",
+      "label": "Notificador Ops",
+      "position": { "x": 1660, "y": 520 },
+      "parameters": { "instances": 2, "process_time_ms": 80 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "queue_alerts", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "db_audit",
+      "type": "database",
+      "label": "BD Auditoría",
+      "position": { "x": 1420, "y": 660 },
+      "parameters": { "max_connections": 40, "query_time_ms": 8, "append_only": true },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "audit_logger", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    }
+  ]
+}

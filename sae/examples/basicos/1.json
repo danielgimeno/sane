@@ -1,0 +1,57 @@
+{
+  "id": "1",
+  "title": "cliente-servidor",
+  "description": "",
+  "category": "basicos",
+  "nodes": [
+    {
+      "id": "node_1",
+      "type": "user",
+      "label": "Usuario",
+      "position": {
+        "x": -194.5,
+        "y": 205.5
+      },
+      "parameters": {
+        "requests_per_second": 10,
+        "burst_size": 50,
+        "think_time_ms": 0
+      },
+      "connections": {
+        "outgoing": [
+          {
+            "target": "node_2",
+            "source_handle": "requests",
+            "target_handle": "in"
+          }
+        ],
+        "incoming": []
+      }
+    },
+    {
+      "id": "node_2",
+      "type": "web_server",
+      "label": "Servidor Web",
+      "position": {
+        "x": 65.0,
+        "y": 197.75
+      },
+      "parameters": {
+        "workers": 4,
+        "process_time_ms": 50,
+        "max_queue": 100,
+        "error_rate": 0.01
+      },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          {
+            "source": "node_1",
+            "source_handle": "requests",
+            "target_handle": "in"
+          }
+        ]
+      }
+    }
+  ]
+}

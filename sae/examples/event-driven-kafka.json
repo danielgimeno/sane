@@ -1,0 +1,111 @@
+{
+  "id": "event-driven-kafka",
+  "title": "Eventos con Kafka",
+  "description": "Microservicios publican eventos a Kafka; un consumidor los procesa y persiste",
+  "category": "Mensajería",
+  "nodes": [
+    {
+      "id": "user1",
+      "type": "user",
+      "label": "Usuarios",
+      "position": { "x": 40, "y": 180 },
+      "parameters": { "requests_per_second": 40 },
+      "connections": {
+        "outgoing": [
+          { "target": "gw1", "source_handle": "requests", "target_handle": "in" }
+        ],
+        "incoming": []
+      }
+    },
+    {
+      "id": "gw1",
+      "type": "api_gateway",
+      "label": "API Gateway",
+      "position": { "x": 220, "y": 180 },
+      "parameters": { "rate_limit_rps": 1000 },
+      "connections": {
+        "outgoing": [
+          { "target": "orders", "source_handle": "out", "target_handle": "in" },
+          { "target": "inventory", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "user1", "source_handle": "requests", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "orders",
+      "type": "microservice",
+      "label": "Orders Service",
+      "position": { "x": 440, "y": 100 },
+      "parameters": { "instances": 3, "process_time_ms": 30 },
+      "connections": {
+        "outgoing": [
+          { "target": "kafka1", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "gw1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "inventory",
+      "type": "microservice",
+      "label": "Inventory Service",
+      "position": { "x": 440, "y": 260 },
+      "parameters": { "instances": 2, "process_time_ms": 25 },
+      "connections": {
+        "outgoing": [
+          { "target": "kafka1", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "gw1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "kafka1",
+      "type": "kafka",
+      "label": "Kafka",
+      "position": { "x": 660, "y": 180 },
+      "parameters": { "partitions": 6, "replication_factor": 3 },
+      "connections": {
+        "outgoing": [
+          { "target": "analytics", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "orders", "source_handle": "out", "target_handle": "in" },
+          { "source": "inventory", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "analytics",
+      "type": "microservice",
+      "label": "Analytics Consumer",
+      "position": { "x": 880, "y": 180 },
+      "parameters": { "instances": 2, "process_time_ms": 50 },
+      "connections": {
+        "outgoing": [
+          { "target": "db1", "source_handle": "out", "target_handle": "in" }
+        ],
+        "incoming": [
+          { "source": "kafka1", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    },
+    {
+      "id": "db1",
+      "type": "database",
+      "label": "Analytics DB",
+      "position": { "x": 1100, "y": 180 },
+      "parameters": { "max_connections": 80, "query_time_ms": 12 },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          { "source": "analytics", "source_handle": "out", "target_handle": "in" }
+        ]
+      }
+    }
+  ]
+}
