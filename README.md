@@ -1,4 +1,4 @@
-# SAE — Software Architecture Emulator
+# SANE — Software Architecture Node Emulator
 
 Emulador visual de arquitecturas de software. Diseña diagramas con drag & drop, configura parámetros por componente y ejecuta simulaciones de tráfico para observar cómo se comporta tu arquitectura.
 
@@ -75,15 +75,15 @@ Abre `http://localhost:5173`.
 
 ### Parámetros destacados por componente
 
-| Componente | Parámetros |
-|---|---|
-| Usuario | peticiones/seg, ráfaga, think time |
-| Balanceador | algoritmo (round_robin, least_connections, random...), health check |
-| Servidor Web | workers, tiempo proceso, cola máx, tasa error |
-| Base de Datos | tiempo query, pool conexiones, slow query threshold |
-| Cola Celery | workers, tiempo encolado, tiempo tarea, prefetch |
-| Redis | hit ratio, latencia GET/SET, eviction policy |
-| CDN | hit ratio, latencia edge/origen |
+| Componente    | Parámetros                                                          |
+| ------------- | ------------------------------------------------------------------- |
+| Usuario       | peticiones/seg, ráfaga, think time                                  |
+| Balanceador   | algoritmo (round_robin, least_connections, random...), health check |
+| Servidor Web  | workers, tiempo proceso, cola máx, tasa error                       |
+| Base de Datos | tiempo query, pool conexiones, slow query threshold                 |
+| Cola Celery   | workers, tiempo encolado, tiempo tarea, prefetch                    |
+| Redis         | hit ratio, latencia GET/SET, eviction policy                        |
+| CDN           | hit ratio, latencia edge/origen                                     |
 
 ## Motor de simulación
 
@@ -108,11 +108,11 @@ Los eventos se procesan **uno a uno, en orden temporal**. No hay paralelismo rea
 
 Tipos de evento:
 
-| Evento | Descripción |
-|---|---|
-| `generate_request` | Un nodo `user` genera peticiones periódicas |
-| `cron_trigger` | Un `cron_job` dispara una tarea |
-| `arrive` | Una petición llega a un nodo |
+| Evento             | Descripción                                        |
+| ------------------ | -------------------------------------------------- |
+| `generate_request` | Un nodo `user` genera peticiones periódicas        |
+| `cron_trigger`     | Un `cron_job` dispara una tarea                    |
+| `arrive`           | Una petición llega a un nodo                       |
 | `process_complete` | Un nodo termina de procesar y reenvía al siguiente |
 
 ### Comportamiento de cada componente
@@ -137,13 +137,13 @@ Ejemplo (`async-workers`):
 
 ### Resumen
 
-| Pregunta | Respuesta |
-|---|---|
-| ¿Hay un thread por nodo? | No |
-| ¿Hay paralelismo real? | No; simulación secuencial por eventos |
-| ¿Qué gobierna cada ítem? | Su `type`, parámetros y posición en el grafo |
+| Pregunta                        | Respuesta                                           |
+| ------------------------------- | --------------------------------------------------- |
+| ¿Hay un thread por nodo?        | No                                                  |
+| ¿Hay paralelismo real?          | No; simulación secuencial por eventos               |
+| ¿Qué gobierna cada ítem?        | Su `type`, parámetros y posición en el grafo        |
 | ¿Cómo se simulan colas/workers? | Tiempos de espera, `_server_busy`, `_server_queues` |
-| ¿Qué hace asyncio? | Orquestar el loop de simulación y el WebSocket |
+| ¿Qué hace asyncio?              | Orquestar el loop de simulación y el WebSocket      |
 
 ## Arquitectura del proyecto
 
@@ -163,12 +163,12 @@ sae/
 
 ## API
 
-| Endpoint | Descripción |
-|---|---|
-| `GET /api/catalog` | Catálogo de componentes agrupados por categoría |
-| `GET /api/catalog/{type}` | Definición de un componente |
-| `POST /api/canvas/validate` | Valida un diagrama |
-| `WS /ws/simulation` | Simulación en tiempo real |
+| Endpoint                    | Descripción                                     |
+| --------------------------- | ----------------------------------------------- |
+| `GET /api/catalog`          | Catálogo de componentes agrupados por categoría |
+| `GET /api/catalog/{type}`   | Definición de un componente                     |
+| `POST /api/canvas/validate` | Valida un diagrama                              |
+| `WS /ws/simulation`         | Simulación en tiempo real                       |
 
 ## Producción
 
@@ -178,3 +178,33 @@ cd .. && poetry run sae
 ```
 
 FastAPI sirve el frontend compilado desde `frontend/dist/`.
+
+## Snapshots
+
+### API con base de datos
+
+![API con base de datos](snapshots/Captura%20desde%202026-06-17%2011-05-40.png)
+
+### Eventos con Kafka
+
+![Eventos con Kafka](snapshots/Captura%20desde%202026-06-17%2011-05-48.png)
+
+### Balanceador con réplicas
+
+![Balanceador con réplicas](snapshots/Captura%20desde%202026-06-17%2011-05-53.png)
+
+### SaaS multi-región alta disponibilidad
+
+![SaaS multi-región alta disponibilidad](snapshots/Captura%20desde%202026-06-17%2011-06-24.png)
+
+### Pipeline de datos en streaming
+
+![Pipeline de datos en streaming](snapshots/Captura%20desde%202026-06-17%2011-06-29.png)
+
+### Menú contextual de parámetros
+
+![Menú contextual de parámetros](snapshots/Captura%20desde%202026-06-17%2011-06-44.png)
+
+### Simulación en curso
+
+![Simulación en curso](snapshots/Captura%20desde%202026-06-17%2011-07-13.png)
