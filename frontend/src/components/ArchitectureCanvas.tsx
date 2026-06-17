@@ -34,6 +34,7 @@ interface ArchitectureCanvasProps {
   simMetrics: SimulationMetrics | null
   running: boolean
   loadExampleId: string | null
+  diagramTitle?: string | null
   onExampleLoaded: (example?: ArchitectureExample) => void
   onClear?: () => void
   onSaveScenario?: () => void
@@ -46,6 +47,7 @@ export default function ArchitectureCanvas({
   simMetrics,
   running,
   loadExampleId,
+  diagramTitle,
   onExampleLoaded,
   onClear,
   onSaveScenario,
@@ -273,6 +275,11 @@ export default function ArchitectureCanvas({
           <div className="empty-state-icon">🏗️</div>
           <p>Arrastra componentes al lienzo</p>
           <small>Conecta salidas con entradas para definir el flujo</small>
+        </div>
+      )}
+      {diagramTitle && (
+        <div className="canvas-diagram-title" title={diagramTitle}>
+          {diagramTitle}
         </div>
       )}
       {hasContent && (

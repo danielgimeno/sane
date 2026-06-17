@@ -220,6 +220,7 @@ export default function App() {
         simMetrics={metrics}
         running={running}
         loadExampleId={loadExampleId}
+        diagramTitle={activeScenario?.title ?? null}
         onExampleLoaded={(example) => {
           setLoadExampleId(null)
           if (example) {

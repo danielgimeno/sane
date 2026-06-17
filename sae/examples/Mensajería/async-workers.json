@@ -1,0 +1,161 @@
+{
+  "id": "async-workers",
+  "title": "Procesamiento asíncrono",
+  "description": "Cron job encola tareas en RabbitMQ; workers las procesan y persisten en base de datos",
+  "category": "Mensajería",
+  "nodes": [
+    {
+      "id": "cron1",
+      "type": "cron_job",
+      "label": "Scheduler",
+      "position": {
+        "x": 40.0,
+        "y": 150.0
+      },
+      "parameters": {
+        "interval_seconds": 10,
+        "jitter_ms": 0
+      },
+      "connections": {
+        "outgoing": [
+          {
+            "target": "queue1",
+            "source_handle": "trigger",
+            "target_handle": "in"
+          }
+        ],
+        "incoming": []
+      }
+    },
+    {
+      "id": "queue1",
+      "type": "rabbitmq",
+      "label": "RabbitMQ",
+      "position": {
+        "x": 260.7977736549165,
+        "y": 347.847866419295
+      },
+      "parameters": {
+        "throughput_rps": 5000,
+        "persist_overhead_ms": 1,
+        "queue_max": 10000,
+        "prefetch_count": 10,
+        "ack_mode": "manual"
+      },
+      "connections": {
+        "outgoing": [
+          {
+            "target": "worker1",
+            "source_handle": "out",
+            "target_handle": "in"
+          },
+          {
+            "target": "worker2",
+            "source_handle": "out",
+            "target_handle": "in"
+          }
+        ],
+        "incoming": [
+          {
+            "source": "cron1",
+            "source_handle": "trigger",
+            "target_handle": "in"
+          }
+        ]
+      }
+    },
+    {
+      "id": "worker1",
+      "type": "microservice",
+      "label": "Worker 1",
+      "position": {
+        "x": 500.0,
+        "y": 80.0
+      },
+      "parameters": {
+        "instances": 2,
+        "process_time_ms": 100,
+        "cpu_limit": 1,
+        "memory_mb": 512
+      },
+      "connections": {
+        "outgoing": [
+          {
+            "target": "db1",
+            "source_handle": "out",
+            "target_handle": "in"
+          }
+        ],
+        "incoming": [
+          {
+            "source": "queue1",
+            "source_handle": "out",
+            "target_handle": "in"
+          }
+        ]
+      }
+    },
+    {
+      "id": "worker2",
+      "type": "microservice",
+      "label": "Worker 2",
+      "position": {
+        "x": 500.0,
+        "y": 220.0
+      },
+      "parameters": {
+        "instances": 2,
+        "process_time_ms": 100,
+        "cpu_limit": 1,
+        "memory_mb": 512
+      },
+      "connections": {
+        "outgoing": [
+          {
+            "target": "db1",
+            "source_handle": "out",
+            "target_handle": "in"
+          }
+        ],
+        "incoming": [
+          {
+            "source": "queue1",
+            "source_handle": "out",
+            "target_handle": "in"
+          }
+        ]
+      }
+    },
+    {
+      "id": "db1",
+      "type": "database",
+      "label": "PostgreSQL",
+      "position": {
+        "x": 740.0,
+        "y": 150.0
+      },
+      "parameters": {
+        "query_time_ms": 20,
+        "max_connections": 50,
+        "connection_pool": 20,
+        "slow_query_threshold_ms": 1000,
+        "replication_lag_ms": 0
+      },
+      "connections": {
+        "outgoing": [],
+        "incoming": [
+          {
+            "source": "worker1",
+            "source_handle": "out",
+            "target_handle": "in"
+          },
+          {
+            "source": "worker2",
+            "source_handle": "out",
+            "target_handle": "in"
+          }
+        ]
+      }
+    }
+  ]
+}

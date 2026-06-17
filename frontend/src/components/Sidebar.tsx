@@ -40,7 +40,7 @@ export default function Sidebar({
           className={`sidebar-tab ${tab === 'examples' ? 'active' : ''}`}
           onClick={() => setTab('examples')}
         >
-          Ejemplos
+          Diagramas
         </button>
       </div>
       {tab === 'components' ? (
